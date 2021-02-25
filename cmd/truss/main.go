@@ -27,6 +27,7 @@ import (
 
 var (
 	svcPackageFlag = flag.String("svcout", "", "Go package path where the generated Go service will be written. Trailing slash will create a NAME-service directory")
+	svcDirNameFlag = flag.BoolP("svcname", "s", false, "save to package dir")
 	verboseFlag    = flag.BoolP("verbose", "v", false, "Verbose output")
 	helpFlag       = flag.BoolP("help", "h", false, "Print usage")
 	getStartedFlag = flag.BoolP("getstarted", "", false, "Output a 'getstarted.proto' protobuf file in ./")
@@ -144,6 +145,7 @@ func parseInput() (*truss.Config, error) {
 	// DefPaths
 	var err error
 	rawDefinitionPaths := flag.Args()
+	log.WithField("rawDefinitionPaths", rawDefinitionPaths).Debug()
 	cfg.DefPaths, err = cleanProtofilePath(rawDefinitionPaths)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse input arguments")
@@ -156,8 +158,13 @@ func parseInput() (*truss.Config, error) {
 		return nil, errors.Wrap(err, "proto files not found in importable go package")
 	}
 
-	cfg.PBPackage = p[0].PkgPath
-	cfg.PBPath = protoDir
+	//cfg.PBPackage = p[0].PkgPath
+	//cfg.PBPath = protoDir
+	// Current Directory
+	currPath, _ := os.Getwd()
+	c, _ := packages.Load(nil, currPath)
+	cfg.PBPackage = c[0].PkgPath
+	cfg.PBPath = currPath
 	log.WithField("PB Package", cfg.PBPackage).Debug()
 	log.WithField("PB Path", cfg.PBPath).Debug()
 
@@ -175,10 +182,13 @@ func parseInput() (*truss.Config, error) {
 
 	svcName = strings.ToLower(svcName)
 
-	svcDirName := svcName + "-service"
+	svcDirName := ""
+	if *svcDirNameFlag {
+		svcDirName = svcName + "-service"
+	}
 	log.WithField("svcDirName", svcDirName).Debug()
 
-	svcPath := filepath.Join(filepath.Dir(cfg.DefPaths[0]), svcDirName)
+	svcPath := filepath.Join(filepath.Dir("./"), svcDirName)
 
 	if *svcPackageFlag != "" {
 		svcOut := *svcPackageFlag
